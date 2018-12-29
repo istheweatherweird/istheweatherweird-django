@@ -15,19 +15,18 @@ if (phone) {
   $("#weird").css("font-size","30px")
 }
 
-d3.json(observationUrl).then(function(response) {
-  var obsTime = new Date(response.properties.timestamp)
-  console.log(response.properties.timestamp)
-  // put observation time at nearest hour
-  if (obsTime.getMinutes() > 29) {
-    obsTime.setTime(obsTime.getTime() + (60*60*1000))
-  }
+var obsTemp = obsTempC * 1.8 + 32;
+if (obsTime.getMinutes() > 29) {
+  obsTime.setTime(obsTime.getTime() + (60*60*1000))
+}
 
-  var obsTemp = response.properties.temperature.value * 1.8 + 32;
+console.log(obsTemp)
+console.log(obsTime)
 
-  var pastUrl = "https://istheweatherweird.github.io/istheweatherweird-data-hourly/csv/" + placeDict[place].number + "/" + String(obsTime.getUTCMonth()+1).padStart(2,'0') + String(obsTime.getUTCDate()).padStart(2,'0') + ".csv"
-  var obsUTCHour = obsTime.getUTCHours()
-  d3.csv(pastUrl,function(d) {
+var pastUrl = "https://istheweatherweird.github.io/istheweatherweird-data-hourly/csv/" + placeDict[place].number + "/" + String(obsTime.getUTCMonth()+1).padStart(2,'0') + String(obsTime.getUTCDate()).padStart(2,'0') + ".csv"
+var obsUTCHour = obsTime.getUTCHours()
+
+d3.csv(pastUrl,function(d) {
     if (+d.hour == obsUTCHour) {
       return {year: +d.year, temp: 32 + (+d.temp) * 0.18}
     };
@@ -36,8 +35,7 @@ d3.json(observationUrl).then(function(response) {
     var sentence = makeHist("graphWrapper", obsTemp, past, obsTime)
     d3.selectAll("#weird").text(sentence)
     // d3.selectAll("#sentence").text("The weather in Chicago is not weird.")
-  });
-})
+});
 
 data = 3
 

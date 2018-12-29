@@ -113,6 +113,11 @@
           <p>by Jonah Bloch-Johnson and Eric Potash. Code on <a href="https://github.com/jsbj/istheweatherweird">github.com</a></p>
       </footer>
   </div> -->
+  <script type="text/javascript">
+    obsTempC = {{ obsTemp }}
+    obsTime = new Date({{obsTime}} * 1000)
+  </script>
+
   <script src="{% static "itww/js/jquery-3.3.1.slim.min.js" %}"></script>
   <script src="{% static "itww/js/popper.min.js" %}"></script>
   <script src="{% static "itww/js/bootstrap.min.js" %}"></script>
