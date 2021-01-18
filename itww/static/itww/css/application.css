@@ -1,5 +1,5 @@
 :root {
-  --jumbotron-padding-y: 3rem;
+  --jumbotron-padding-y: 1.5rem;
 }
 
 .jumbotron {
@@ -7,12 +7,6 @@
   padding-bottom: var(--jumbotron-padding-y);
   margin-bottom: 0;
   background-color: #fff;
-}
-@media (min-width: 768px) {
-  .jumbotron {
-    padding-top: calc(var(--jumbotron-padding-y) * 2);
-    padding-bottom: calc(var(--jumbotron-padding-y) * 2);
-  }
 }
 
 .jumbotron p:last-child {
@@ -27,9 +21,16 @@
   max-width: 40rem;
 }*/
 
+/* decrease horizontal padding for mobile */
+.container {
+    padding-right: 10px;
+    padding-left: 10px
+}
+
 /* graph */
 rect.bar {
-  fill: steelblue;
+  stroke: steelblue;
+  fill: #74a1c7;
   shape-rendering: crispEdges;
 }
 
@@ -43,16 +44,77 @@ rect.bar {
   shape-rendering: crispEdges;
 }
 
-#graphWrapper {
+#histWrapper {
   font: 16px sans-serif;
 /*  color: white;*/
 }
 
+#notes {
+    margin-top: 1em;
+    color: gray;
+}
+
 .tick text {
-  font: 16px sans-serif;  
+  font: 16px sans-serif;
 }
 
 
 #currentYear text {
-  font: 20px sans-serif;  
+  font: 20px sans-serif;
+}
+
+.itww-typical {
+    color: green
+}
+
+.itww-warmer {
+    color: tomato
+}
+
+.itww-warmest {
+    color: red
+}
+
+.itww-colder {
+    color: lightblue
+}
+
+.itww-coldest {
+    color: blue
+}
+
+.div-inline{
+    display:inline-block;
+}
+
+.btn-place {
+  color: #000;
+  background-color: #FFF;
+  padding: 0px 10px;
+  font-size: 2.5rem;
+  font-weight: 300;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+/* make hamburger menu leaner to fit on mobile */
+.navbar-toggler {
+    padding-right: .2rem;
+    padding-left: .2rem;
+    padding-top: .2rem;
+    padding-bottom: .2rem;
+}
+
+.navbar-toggler-icon {
+    width: 1.2em;
+    height: 1.2em;
+}
+
+.navbar {
+    padding-left: .5em;
+    padding-right: .5em;
+}
+
+.navbar-brand {
+    margin-right: .6em;
 }
