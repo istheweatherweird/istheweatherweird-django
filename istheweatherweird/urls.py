@@ -19,5 +19,5 @@ from django.urls import include, path
 
 urlpatterns = [
     # url(r'^itww/', include('itww.urls')),
-    patterns('',url(r'^', include('itww.urls')))
+    url(r'^', include('itww.urls'))
 ]
