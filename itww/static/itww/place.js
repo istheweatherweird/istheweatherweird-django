@@ -95,8 +95,6 @@ var makePage = function(obsTime,obsTemp,place,interval) {
   });
 }
 
-intervals = ["hour","day","month","year","decade"]
-
 var makeHist = function(wrapperId, obs, past, obsTime, place, histTime, interval) {
   var pastTemps = past.map(function(d) { return d.temp })
   // A formatter for counts.
@@ -271,16 +269,6 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, histTime, interval
   });
   placeDropdownHtml += "</div></div>"
 
-  var intervalDropdownHtml = "<div class='dropdown div-inline'><button id='itww-time-button' class='btn btn-secondary btn-lg btn-place dropdown-toggle' type='button' id='intervalDropdownMenuButton' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>" + interval + "</button><div class='dropdown-menu' aria-labelledby='intervalDropdownMenuButton'>"
-  intervals.forEach(function(i) {
-    intervalDropdownHtml += "<a class='dropdown-item"
-    if (i == interval) {
-      intervalDropdownHtml += " active"
-    }
-    intervalDropdownHtml += "' href='?station=" + place.ICAO + "&interval=" + i + "'>" + i + "</a>"
-  });
-  intervalDropdownHtml += "</div></div>"
-
   var obsRound = Math.round(obs, 0)
 
   var weirdnessTexts = [
@@ -303,15 +291,7 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, histTime, interval
   // only style the comparative if its not typical
   var compHtml = weirdness == 0 ? compText : `<span class='itww-${style}'>${compText}</span>`
 
-  // var averageHtml;
-  // if (interval == "hour") {
-  //   averageHtml = "";
-  // } else {
-  //   averageHtml = "average ";
-  // }
-  var averageHtml = ""
-
-  var sentence1 = `The ${averageHtml}weather in the past ${intervalDropdownHtml} in ${placeDropdownHtml} is ${weirdnessHtml}.`
+  var sentence1 = `The weather in ${placeDropdownHtml} is ${weirdnessHtml}.`
   var sentence2 = ''
   if (!record) {
     sentence2 += `It's ${obsRound}ºF, ${compHtml} than ${percRel}% of ${histTimeText} temperatures on record.`
@@ -319,161 +299,6 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, histTime, interval
     sentence2 += `It's ${obsRound}ºF, the ${compHtml} ${histTimeText} temperature on record.`
   }
   return sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>'
-}
-
-
-var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, place, histTime) {
-  var pastTemps = past.map(function(d) { return d.temp })
-  var startingYear = Math.min(...past.map(function(d) { return parseInt(d.year) }))
-  var currentYear = obsTime.getFullYear()
-
-  // A formatter for counts.
-  var formatCount = d3.format(",.0f");
-
-  var margin = {top: 60, right: 30, bottom: 50, left: 30}
-
-  var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
-
-  var allTemps = pastTemps.concat(obs)
-  var tempExtent = d3.extent(allTemps)
-
-  x_with_value = d3.scaleLinear()
-    .domain([Math.floor(tempExtent[0]),
-             Math.ceil(tempExtent[1])])
-    .range([0, width]);
-
-    var tickNum = d3.thresholdFreedmanDiaconis(allTemps, tempExtent[0], tempExtent[1])
-    if (phone) {
-      tickNum = Math.min(tickNum, MOBILE_BINS_MAX)
-    } else {
-      tickNum = Math.max(tickNum, DESKTOP_BINS_MIN)
-    }
-
-    var ticks = x_with_value.ticks(tickNum)
-    var data = d3.bin()
-        .value(function(d) {return d.temp})
-        .thresholds(ticks)
-        (past.concat({temp: obs, year: obsTime.getUTCFullYear()}));
-
-    data = data.map(function(ar) {
-      var tempAr = ar.filter(function(yr) { return yr.year != obsTime.getUTCFullYear() })
-      tempAr.x0 = ar.x0
-      tempAr.x1 = ar.x1
-      return tempAr
-    })
-
-    data[0].x0 = data[0].x1-(data[1].x1 - data[0].x1)
-    data[data.length-1].x1 = data[data.length-1].x0+(data[1].x1 - data[0].x1)
-    var x = d3.scaleLinear()
-        .domain([data[0].x0,data[data.length-1].x1])
-        // .domain(d3.extent(x_with_value.ticks(tickNum)))
-        .range([0,width]);
-
-    // the maximum number of observations in a bin
-    maxFreq = d3.max(data, function(d) { return d.length; })
-    if (phone) {
-      var height = 350 - margin.top - margin.bottom
-    } else {
-      // on dekstop height is maxFreq * 24 to make room for years text
-      var height = maxFreq * 24
-    }
-
-    var y = d3.scaleLinear()
-        .domain([startingYear, currentYear])
-        .range([height, 0]);
-
-    // index of last tick for adding dF to label
-    var last_label_i = data.length
-    var phone_cull = phone && (data.length > MOBILE_BINS_MAX)
-    // when number of bins is even and we've culled, last tick is unlabeled
-    if (phone_cull && data.length % 2 == 1) {
-        last_label_i -= 1
-    }
-    var xAxis = d3.axisBottom()
-        .scale(x)
-        .ticks(data.length+1)
-        .tickFormat(function(d, i) {
-            var label = ""
-            label += d
-            if (phone_cull && i % 2 != 0) {
-                label = ""
-            }
-
-            if (i == last_label_i) {
-                label += "ºF"
-            }
-            return label
-        });
-
-    var svg = d3.select("#" + wrapperId).append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-      .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-    svg.append("line")
-        .attr("x1", x(obs))
-        .attr("y1", -20)
-        .attr("x2", x(obs))
-        .attr("y2", height)
-        .attr("stroke-width", 2)
-        .attr("opacity", 0.5)
-        .attr("stroke", "black");
-
-    var yearTimeSeriesLine = d3.line()
-        .x(d => x(parseFloat(d.temp)))
-        .y(d => y(parseInt(d.year)))
-
-
-    svg.append("path")
-        .datum(data)
-        .attr("d",yearTimeSeriesLine)
-
-    // svg.selectAll("rect")
-    //   .data(data)
-    // .enter().append("rect")
-    //   .attr("class", "bar")
-    //   .attr("x", 1)
-    //   .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
-    //   .attr("width", function(d) { return x(d.x1) - x(d.x0) ; })
-    //   .attr("height", function(d) { return height - y(d.length); });
-
-      if (!phone) {
-        data.forEach(function(d,i) {
-            d = d.sort(function(e,f) { return f.year - e.year})
-            d.forEach(function(j,k) {
-                svg.append("text")
-                .attr("dy", ".75em")
-                .attr("y", 5 + y(d.length) + k * 24)
-                .attr("x", x(d.x0) + (x(d.x1) - x(d.x0)) / 2)
-                .attr("text-anchor", "middle")
-                //.attr("fill", "white")
-                //.attr("stroke", "white")
-                .text(j.year);
-            })
-        })
-
-      }
-
-    svg.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + height + ")")
-        .call(xAxis);
-
-
-    svg.append("text")
-        // .attr("dy", ".75em")
-        .attr("y", -20)
-        .attr("x", x(obs))
-        .attr("text-anchor", "middle")
-        .attr("font-size", "24px")
-        .text(currentYear);
-
-    var histTimeText = histTime.toLocaleDateString("en-US",{month: "short", day: "numeric", hour: "numeric", timeZone: place.TZ})
-    svg.append("text")      // text label for the x axis
-            .attr("transform", "translate(" + (width / 2) + " ," + (height + margin.bottom - 5) + ")")
-            .style("text-anchor", "middle")
-            .text(histTimeText + " Temperatures");
 }
 
 var phone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
