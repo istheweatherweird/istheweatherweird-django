@@ -39,35 +39,18 @@ var getNearestStation = function(geoip, placeMap) {
             return d3.ascending(a[1].distance, b[1].distance); })[0][1];
 }
 
-var lookUpObservations = function(place,interval) {
+var lookUpObservations = function(place) {
   // get the most recent observation
-  d3.json("https://api.weather.gov/stations/"+ place.ICAO + "/observations/latest").then(function(response) {
-    // if it doesn't have an observation, look further back
-    if (response.properties.temperature.value == null) {
-        d3.json("https://api.weather.gov/stations/"+ place.ICAO + "/observations").then(function(newResponse) {
-          var obsTime = 0
-          var obsTemp = null
-          for (var i = 0; i < newResponse.features.length; i++) {
-            obsTemp = newResponse.features[i].properties.temperature.value
-            if (obsTemp != null) {
-              obsTemp = obsTemp  * 1.8 + 32;
-              obsTime = new Date(newResponse.features[i].properties.timestamp)
-              break
-            }
-          }
-          makePage(obsTime,obsTemp,place,interval)
-        })
-    // otherwise, go for it!
-    } else {
-      var obsTime = new Date(response.properties.timestamp)
-      var obsTemp = response.properties.temperature.value * 1.8 + 32;
-      makePage(obsTime,obsTemp,place,interval)
-    }
+  d3.json("/metar?call=" + place.ICAO).then(function(response) {
+      console.log(response)
+      obsTemp = response['obsTemp'] * 1.8 + 32
+      obsTime = new Date(response['obsTime'] * 1000)
+      makePage(obsTime, obsTemp, place)
   })
 }
 
 // look up static CSV with obs and use it + observed temp to make histogram
-var makePage = function(obsTime,obsTemp,place,interval) {
+var makePage = function(obsTime,obsTemp,place) {
   // put hist time at nearest hour
   var histTime = roundMinutes(obsTime)
   id = place.USAF + "-" + place.WBAN
@@ -79,13 +62,12 @@ var makePage = function(obsTime,obsTemp,place,interval) {
     };
   }).then(function(past) {
     // make histograms
-    var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place, histTime, interval)
+    var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place, histTime)
     d3.select("#weird").html(sentence)
     Place = place
     Past = past
     ObsTime = obsTime
     d3.select("#notes").text('Notes:').append('ul').append('li').text(`Weather station: ${place['STATION NAME']}`).append('li').text(`NWS API last observation: ${obsTime.toLocaleDateString("en-US",{hour: "numeric", minute:"numeric", timeZone: place.TZ})}`).append('li').text(`NOAA ISD history: ${Past.length} observations since ${Past[0]['year']}`).append('li').text(`Timezone: ${place.TZ}`)
-    makeYearTimeSeries("yearTimeSeriesWrapper", obsTemp, past, obsTime, place, histTime)
 
     if (phone) {
       $("#weird").css("font-size","30px")
@@ -95,7 +77,7 @@ var makePage = function(obsTime,obsTemp,place,interval) {
   });
 }
 
-var makeHist = function(wrapperId, obs, past, obsTime, place, histTime, interval) {
+var makeHist = function(wrapperId, obs, past, obsTime, place, histTime) {
   var pastTemps = past.map(function(d) { return d.temp })
   // A formatter for counts.
   var formatCount = d3.format(",.0f");
@@ -265,7 +247,7 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, histTime, interval
     if (p.ICAO == place.ICAO) {
       placeDropdownHtml += " active"
     }
-    placeDropdownHtml += "' href='?station=" + p.ICAO + "&interval=" + interval + "'>" + p.place + "</a>"
+    placeDropdownHtml += "' href='?station=" + p.ICAO + "'>" + p.place + "</a>"
   });
   placeDropdownHtml += "</div></div>"
 
@@ -309,30 +291,24 @@ d3.csv(stations_url).then(function(data) {
     // placeMap = new Map()
     // placeMap = d3.map(data, function(d) { return d.ICAO })
     placeMap = new Map(data.map(d => [d.ICAO, d]));
-    var interval;
-    if ('interval' in getUrlVars()) {
-        interval = getUrlVars().interval
-    } else {
-        interval = "hour"
-    }
 
     /* If we get an error we will */
     var onError = function (error) {
-      lookUpObservations(placeMap.get(DEFAULT_STATION),interval)
+      lookUpObservations(placeMap.get(DEFAULT_STATION))
     };
 
     station = getUrlVars().station
     if (station) {
         place = placeMap.get(station)
         if (place) {
-            lookUpObservations(place,interval)
+            lookUpObservations(place)
         } else {
             onError()
         }
     } else {
         $.getJSON("https://get.geojs.io/v1/ip/geo.json", function(geoip) {
             place = getNearestStation(geoip, placeMap)
-            lookUpObservations(place,interval)
+            lookUpObservations(place)
         }).fail(function() {
             onError()
         })

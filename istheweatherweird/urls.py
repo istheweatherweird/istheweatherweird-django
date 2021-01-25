@@ -16,8 +16,10 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 from django.urls import include, path
+from itww import views
 
 urlpatterns = [
     # url(r'^itww/', include('itww.urls')),
-    url(r'^', include('itww.urls'))
+    url(r'^', include('itww.urls')),
+    path('metar', views.metar, name = 'metar')
 ]
