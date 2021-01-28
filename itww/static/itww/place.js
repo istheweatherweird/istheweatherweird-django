@@ -44,16 +44,22 @@ var lookUpObservations = function(place) {
   d3.json("/metar?call=" + place.ICAO).then(function(response) {
       console.log(response)
       obsTemp = response['obsTemp'] * 1.8 + 32
-      obsTime = new Date(response['obsTime'] * 1000)
+      obsTime = response['obsTime'] //new Date(response['obsTime'] * 1000)
       makePage(obsTime, obsTemp, place)
   })
 }
 
 // look up static CSV with obs and use it + observed temp to make histogram
 var makePage = function(obsTime,obsTemp,place) {
+  id = place.USAF + "-" + place.WBAN
+  console.log("/history?timestamp=" + obsTime + "&station_id=" + id)
+  d3.json("/history?timestamp=" + obsTime + "&station_id=" + id).then(function(response) {
+      console.log(response)
+  })
+  obsTime = new Date(obsTime * 1000)
+
   // put hist time at nearest hour
   var histTime = roundMinutes(obsTime)
-  id = place.USAF + "-" + place.WBAN
   var pastUrl = DATA_URL + "/csv/" + id + "/" + String(histTime.getUTCMonth()+1).padStart(2,'0') + String(histTime.getUTCDate()).padStart(2,'0') + ".csv"
   var histUTCHour = histTime.getUTCHours()
   d3.csv(pastUrl,function(d) {

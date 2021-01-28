@@ -1,9 +1,27 @@
 from django.shortcuts import render
 from django.http import HttpResponse, Http404
-import json
+from django.db import connection
 
+import pandas as pd
+import json
 import requests
 from metar import Metar
+import os
+
+BASEDIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(BASEDIR, "sql", "hourly.sql"), 'r') as file:
+    HOURLY_QUERY = file.read()
+
+def history(request):
+    station_id = request.GET['station_id']
+    timestamp = request.GET['timestamp']
+    query = HOURLY_QUERY.format(station_id=station_id,
+                                timestamp=timestamp)
+
+    result = pd.read_sql(query, con=connection).astype({'year': int})
+    data = result.set_index("year").temp.to_json()
+
+    return HttpResponse(data, content_type='application/json')
 
 def metar(request):
     call = request.GET['call']
