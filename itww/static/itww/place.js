@@ -42,38 +42,21 @@ var getNearestStation = function(geoip, placeMap) {
 var lookUpObservations = function(place) {
   // get the most recent observation
   d3.json("/metar?call=" + place.ICAO).then(function(response) {
-      console.log(response)
       obsTemp = response['obsTemp'] * 1.8 + 32
-      obsTime = response['obsTime'] //new Date(response['obsTime'] * 1000)
+      obsTime = response['obsTime']
       makePage(obsTime, obsTemp, place)
   })
 }
 
 // look up static CSV with obs and use it + observed temp to make histogram
 var makePage = function(obsTime,obsTemp,place) {
-  id = place.USAF + "-" + place.WBAN
-  console.log("/history?timestamp=" + obsTime + "&station_id=" + id)
-  d3.json("/history?timestamp=" + obsTime + "&station_id=" + id).then(function(response) {
-      console.log(response)
-  })
   obsTime = new Date(obsTime * 1000)
-
-  // put hist time at nearest hour
-  var histTime = roundMinutes(obsTime)
-  var pastUrl = DATA_URL + "/csv/" + id + "/" + String(histTime.getUTCMonth()+1).padStart(2,'0') + String(histTime.getUTCDate()).padStart(2,'0') + ".csv"
-  var histUTCHour = histTime.getUTCHours()
-  d3.csv(pastUrl,function(d) {
-    if (+d.hour == histUTCHour) {
-      return {year: +d.year, temp: 32 + (+d.temp) * 0.18}
-    };
-  }).then(function(past) {
+  id = place.USAF + "-" + place.WBAN
+  d3.json("/history?timestamp=" + obsTime.toISOString() + "&station_id=" + id).then(function(past) {
     // make histograms
-    var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place, histTime)
+    var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place)
     d3.select("#weird").html(sentence)
-    Place = place
-    Past = past
-    ObsTime = obsTime
-    d3.select("#notes").text('Notes:').append('ul').append('li').text(`Weather station: ${place['STATION NAME']}`).append('li').text(`NWS API last observation: ${obsTime.toLocaleDateString("en-US",{hour: "numeric", minute:"numeric", timeZone: place.TZ})}`).append('li').text(`NOAA ISD history: ${Past.length} observations since ${Past[0]['year']}`).append('li').text(`Timezone: ${place.TZ}`)
+    d3.select("#notes").text('Notes:').append('ul').append('li').text(`Weather station: ${place['STATION NAME']}`).append('li').text(`METAR last observation: ${obsTime.toLocaleDateString("en-US",{hour: "numeric", minute:"numeric", timeZone: place.TZ})}`).append('li').text(`NOAA ISD history: ${past.length} observations since ${past[0]['year']}`).append('li').text(`Timezone: ${place.TZ}`)
 
     if (phone) {
       $("#weird").css("font-size","30px")
@@ -83,7 +66,7 @@ var makePage = function(obsTime,obsTemp,place) {
   });
 }
 
-var makeHist = function(wrapperId, obs, past, obsTime, place, histTime) {
+var makeHist = function(wrapperId, obs, past, obsTime, place) {
   var pastTemps = past.map(function(d) { return d.temp })
   // A formatter for counts.
   var formatCount = d3.format(",.0f");
@@ -218,7 +201,7 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, histTime) {
         .attr("font-size", "24px")
         .text(obsTime.getFullYear());
 
-    var histTimeText = histTime.toLocaleDateString("en-US",{month: "short", day: "numeric", hour: "numeric", timeZone: place.TZ})
+    var histTimeText = obsTime.toLocaleDateString("en-US",{month: "short", day: "numeric", hour: "numeric", timeZone: place.TZ})
     svg.append("text")      // text label for the x axis
             .attr("transform", "translate(" + (width / 2) + " ," + (height + margin.bottom - 5) + ")")
             .style("text-anchor", "middle")

@@ -1,7 +1,7 @@
 with reference_dates0 as (
     select generate_series(
-        to_timestamp({timestamp}) - '100 years'::interval,
-        to_timestamp({timestamp}), 
+        '{timestamp}'::timestamp with time zone - '100 years'::interval,
+        '{timestamp}'::timestamp with time zone, 
         '1 year'::interval) as ref_date
 ),
 

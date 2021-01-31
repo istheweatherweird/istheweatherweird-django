@@ -15,11 +15,12 @@ with open(os.path.join(BASEDIR, "sql", "hourly.sql"), 'r') as file:
 def history(request):
     station_id = request.GET['station_id']
     timestamp = request.GET['timestamp']
+    
     query = HOURLY_QUERY.format(station_id=station_id,
                                 timestamp=timestamp)
 
     result = pd.read_sql(query, con=connection).astype({'year': int})
-    data = result.set_index("year").temp.to_json()
+    data = result.to_json(orient='records')
 
     return HttpResponse(data, content_type='application/json')
 
