@@ -12,6 +12,12 @@ BASEDIR = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASEDIR, "sql", "hourly.sql"), 'r') as file:
     HOURLY_QUERY = file.read()
 
+def stations(request):
+    result = pd.read_sql("select * from places", con=connection)
+    data = result.to_json(orient='records')
+
+    return HttpResponse(data, content_type='application/json')
+
 def history(request):
     station_id = request.GET['station_id']
     timestamp = request.GET['timestamp']

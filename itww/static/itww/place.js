@@ -275,10 +275,7 @@ var makeHist = function(wrapperId, obs, past, obsTime, place) {
 var phone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
 
-var stations_url = DATA_URL + "/csv/stations.csv"
-d3.csv(stations_url).then(function(data) {
-    // placeMap = new Map()
-    // placeMap = d3.map(data, function(d) { return d.ICAO })
+d3.json("/stations").then(function(data) {
     placeMap = new Map(data.map(d => [d.ICAO, d]));
 
     /* If we get an error we will */

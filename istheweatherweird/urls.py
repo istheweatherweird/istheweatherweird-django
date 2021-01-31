@@ -22,5 +22,6 @@ urlpatterns = [
     # url(r'^itww/', include('itww.urls')),
     url(r'^', include('itww.urls')),
     path('metar', views.metar, name = 'metar'),
-    path('history', views.history, name = 'history')
+    path('history', views.history, name = 'history'),
+    path('stations', views.stations, name = 'stations')
 ]
