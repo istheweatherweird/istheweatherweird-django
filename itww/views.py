@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, Http404
 from django.db import connection
+from django.core.cache import cache
 
 import pandas as pd
 import json
@@ -21,12 +22,16 @@ def stations(request):
 def history(request):
     place_id = request.GET['place_id']
     timestamp = request.GET['timestamp']
+    key = place_id + "_" + timestamp
     
-    query = HOURLY_QUERY.format(place_id=place_id,
-                                timestamp=timestamp)
+    data = cache.get(key)
+    if not data:
+        query = HOURLY_QUERY.format(place_id=place_id,
+                                    timestamp=timestamp)
 
-    result = pd.read_sql(query, con=connection).astype({'year': int})
-    data = result.to_json(orient='records')
+        result = pd.read_sql(query, con=connection).astype({'year': int})
+        data = result.to_json(orient='records')
+        cache.set(key, data)
 
     return HttpResponse(data, content_type='application/json')
 
