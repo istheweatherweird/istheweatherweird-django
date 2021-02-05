@@ -19,10 +19,10 @@ def stations(request):
     return HttpResponse(data, content_type='application/json')
 
 def history(request):
-    station_id = request.GET['station_id']
+    place_id = request.GET['place_id']
     timestamp = request.GET['timestamp']
     
-    query = HOURLY_QUERY.format(station_id=station_id,
+    query = HOURLY_QUERY.format(place_id=place_id,
                                 timestamp=timestamp)
 
     result = pd.read_sql(query, con=connection).astype({'year': int})

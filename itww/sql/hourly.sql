@@ -16,7 +16,7 @@ from reference_dates
 join isd
     on isd.timestamp between ref_date - '1 hour'::interval and
                              ref_date + '1 hour'::interval
-where station_id = '{station_id}'
+where place_id = {place_id}
 order by year,
     -- no abs(time interval) function so use greatest(interval, -interval)
     greatest(ref_date - timestamp, timestamp - ref_date);

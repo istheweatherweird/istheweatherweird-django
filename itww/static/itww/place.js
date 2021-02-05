@@ -51,8 +51,7 @@ var lookUpObservations = function(place) {
 // look up static CSV with obs and use it + observed temp to make histogram
 var makePage = function(obsTime,obsTemp,place) {
   obsTime = new Date(obsTime * 1000)
-  id = place.USAF + "-" + place.WBAN
-  d3.json("/history?timestamp=" + obsTime.toISOString() + "&station_id=" + id).then(function(past) {
+  d3.json("/history?timestamp=" + obsTime.toISOString() + "&place_id=" + place.place_id).then(function(past) {
     // make histograms
     var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place)
     d3.select("#weird").html(sentence)
