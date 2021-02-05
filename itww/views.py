@@ -34,7 +34,7 @@ def history(request):
 
         result = pd.read_sql(query, con=connection).astype({'year': int})
         data = result.to_json(orient='records')
-        cache.set(key, data)
+        cache.set(key, data, timeout=60*60*2) # cache for 2 hours
 
     return HttpResponse(data, content_type='application/json')
 
