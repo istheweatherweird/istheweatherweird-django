@@ -13,10 +13,15 @@ BASEDIR = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASEDIR, "sql", "hourly.sql"), 'r') as file:
     HOURLY_QUERY = file.read()
 
+def get_stations():
+    result = pd.read_sql("select * from places", con=connection)
+
+    return result
+
 def stations(request):
     data = cache.get("stations")
     if not data:
-        result = pd.read_sql("select * from places", con=connection)
+        result = get_stations()
         data = result.to_json(orient='records')
         cache.set("stations", data)
 
@@ -38,8 +43,7 @@ def history(request):
 
     return HttpResponse(data, content_type='application/json')
 
-def metar(request):
-    call = request.GET['call']
+def get_metar(call):
     metar_url = 'http://tgftp.nws.noaa.gov/data/observations/metar/stations/%s.TXT' % call
 
     response = requests.get(metar_url) 
@@ -52,7 +56,12 @@ def metar(request):
     obsDict = {'obsTemp': obs.temp.value(),
                'obsTime': obs.time.timestamp()}
 
+    return obsDict
+
+def metar(request):
+    obsDict = get_metar(request.GET['call'])
     data = json.dumps(obsDict)
+
     return HttpResponse(data, content_type='application/json')
 
 def index(request):
