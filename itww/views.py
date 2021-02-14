@@ -54,7 +54,7 @@ def get_metar(call):
     metar_txt = response.text.split('\n')[1]
     obs = Metar.Metar(metar_txt)
     obsDict = {'obsTemp': obs.temp.value(),
-               'obsTime': obs.time.timestamp()}
+               'obsTime': obs.time.isoformat() + 'Z'}
 
     return obsDict
 

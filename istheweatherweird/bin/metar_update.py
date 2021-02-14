@@ -13,14 +13,15 @@ from itww.views import get_stations, get_metar
 
 METAR_KEY = 'metar_{call}'
 INSERT_SQL = """
-insert into metar (place_id, timestamp, temp)
-values ({place_id}, to_timestamp({timestamp}), {temp})
+insert into metar (place_id, timestamp, temp, last_updated)
+values ({place_id}, '{timestamp}'::timestamp, {temp}, now())
 on conflict (place_id, timestamp) do
 update
-    set temp = {temp}
+    set temp = {temp},
+    last_updated = now()
 """
 cur = connection.cursor()
-
+cur.execute("SET TIMEZONE='UTC'")
 stations = get_stations()
 for i, station in stations.iterrows():
     print(station['ICAO'])
