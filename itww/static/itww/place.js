@@ -41,7 +41,7 @@ var getNearestStation = function(geoip, placeMap) {
 
 var lookUpObservations = function(place,interval) {
   // get the most recent observation
-  d3.json("/metar?call=" + place.ICAO).then(function(response) {
+  d3.json("/metar?call=" + place.ICAO + "&interval=" + interval).then(function(response) {
       obsTemp = response['obsTemp'] * 1.8 + 32
       obsTime = response['obsTime']
       makePage(obsTime, obsTemp, place, interval)
@@ -51,7 +51,7 @@ var lookUpObservations = function(place,interval) {
 // look up static CSV with obs and use it + observed temp to make histogram
 var makePage = function(obsTime,obsTemp,place,interval) {
   obsTime = new Date(obsTime * 1000)
-  d3.json("/history?timestamp=" + obsTime.toISOString() + "&place_id=" + place.place_id).then(function(past) {
+  d3.json("/history?timestamp=" + obsTime.toISOString() + "&place_id=" + place.place_id + "&interval=" + interval).then(function(past) {
     // make histograms
     var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place, interval)
     d3.select("#weird").html(sentence)
