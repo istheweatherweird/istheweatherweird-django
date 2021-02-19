@@ -12,34 +12,48 @@ import os
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASEDIR, "sql", "hourly.sql"), 'r') as file:
     HOURLY_QUERY = file.read()
+    
+with open(os.path.join(BASEDIR, "sql", "interval.sql"), 'r') as file:
+    INTERVAL_QUERY = file.read()
 
 def get_stations():
     result = pd.read_sql("select * from places", con=connection)
-
     return result
-
+    
 def stations(request):
     data = cache.get("stations")
-    if not data:
+    if data is None:
         result = get_stations()
         data = result.to_json(orient='records')
         cache.set("stations", data)
 
     return HttpResponse(data, content_type='application/json')
 
-def history(request):
-    place_id = request.GET['place_id']
-    timestamp = request.GET['timestamp']
-    key = place_id + "_" + timestamp
-    
+def get_history(place_id, timestamp, interval):
+    key = place_id + "_" + timestamp + "_" + interval
+    print(key)
     data = cache.get(key)
+    
     if not data:
-        query = HOURLY_QUERY.format(place_id=place_id,
-                                    timestamp=timestamp)
-
+        query = HOURLY_QUERY if interval == 'hour' else INTERVAL_QUERY
+        query = query.format(place_id=place_id,
+                             timestamp=timestamp,
+                             interval = "1 " + interval)
+                             
+        print(query)
+        
         result = pd.read_sql(query, con=connection).astype({'year': int})
         data = result.to_json(orient='records')
         cache.set(key, data, timeout=60*60*2) # cache for 2 hours
+        
+    return data
+
+def history(request):
+    place_id = request.GET['place_id']
+    timestamp = request.GET['timestamp']
+    interval = request.GET['interval']
+    
+    data = get_history(place_id, timestamp, interval="hour")
 
     return HttpResponse(data, content_type='application/json')
 
