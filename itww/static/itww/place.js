@@ -75,7 +75,7 @@ intervalPhrases = {
 
 var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   past.map(function(x) { x.temp = x.temp * 1.8 + 32 })
-  
+
   if (interval != 'hour') {
     past = past.filter(function(d) { return d.max_gap_hours < 4 })
   }
@@ -300,6 +300,11 @@ var phone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.tes
 
 
 d3.json("/stations").then(function(data) {
+    data.sort(function(a, b){
+        if(a.place < b.place) { return -1; }
+        if(a.place > b.place) { return 1; }
+        return 0;
+    })
     placeMap = new Map(data.map(d => [d.ICAO, d]));
     var interval;
     if ('interval' in getUrlVars()) {
