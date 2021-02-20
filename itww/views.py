@@ -10,11 +10,17 @@ from metar import Metar
 import os
 
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(BASEDIR, "sql", "hourly.sql"), 'r') as file:
-    HOURLY_QUERY = file.read()
+with open(os.path.join(BASEDIR, "sql", "history", "hourly.sql"), 'r') as file:
+    HOURLY_HISTORY_QUERY = file.read()
     
-with open(os.path.join(BASEDIR, "sql", "interval.sql"), 'r') as file:
-    INTERVAL_QUERY = file.read()
+with open(os.path.join(BASEDIR, "sql", "history", "interval.sql"), 'r') as file:
+    INTERVAL_HISTORY_QUERY = file.read()
+    
+with open(os.path.join(BASEDIR, "sql", "latest", "hourly.sql"), 'r') as file:
+    HOURLY_LATEST_QUERY = file.read()
+    
+with open(os.path.join(BASEDIR, "sql", "latest", "interval.sql"), 'r') as file:
+    INTERVAL_LATEST_QUERY = file.read()
 
 def get_stations():
     result = pd.read_sql("select * from places", con=connection)
@@ -31,17 +37,14 @@ def stations(request):
 
 def get_history(place_id, timestamp, interval):
     key = place_id + "_" + timestamp + "_" + interval
-    print(key)
     data = cache.get(key)
     
-    if not data:
-        query = HOURLY_QUERY if interval == 'hour' else INTERVAL_QUERY
+    if data is None:
+        query = HOURLY_HISTORY_QUERY if interval == 'hour' else INTERVAL_HISTORY_QUERY
         query = query.format(place_id=place_id,
                              timestamp=timestamp,
                              interval = "1 " + interval)
                              
-        print(query)
-        
         result = pd.read_sql(query, con=connection).astype({'year': int})
         data = result.to_json(orient='records')
         cache.set(key, data, timeout=60*60*2) # cache for 2 hours
@@ -53,8 +56,7 @@ def history(request):
     timestamp = request.GET['timestamp']
     interval = request.GET['interval']
     
-    data = get_history(place_id, timestamp, interval="hour")
-
+    data = get_history(place_id, timestamp, interval)
     return HttpResponse(data, content_type='application/json')
 
 def get_metar(call):
@@ -72,10 +74,26 @@ def get_metar(call):
 
     return obsDict
 
-def metar(request):
-    obsDict = get_metar(request.GET['call'])
-    data = json.dumps(obsDict)
+def get_current(place_id, interval):
+    key = place_id + "_current_" + interval
+    data = cache.get(key)
+    
+    if data is None:
+        query = HOURLY_LATEST_QUERY if interval == 'hour' else INTERVAL_LATEST_QUERY
+        query = query.format(place_id=place_id,
+                             interval = "1 " + interval)
+                             
+        result = pd.read_sql(query, con=connection)
+        data = result.loc[0].to_json()
+        cache.set(key, data, timeout=60*60*2) # cache for 2 hours
 
+    return data
+
+def current(request):
+    interval = request.GET['interval']
+    place_id = request.GET['place_id']
+    
+    data = get_current(place_id, interval)
     return HttpResponse(data, content_type='application/json')
 
 def index(request):

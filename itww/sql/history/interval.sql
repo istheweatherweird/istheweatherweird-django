@@ -7,9 +7,9 @@ with reference_dates0 as (
 
 reference_dates as (
   select ref_date,
-    ref_date - '{window}'::interval as ref_interval_start,
+    ref_date - '{interval}'::interval as ref_interval_start,
     ref_date as ref_interval_end,
-    extract(epoch from '{window}'::interval) as interval_length,
+    extract(epoch from '{interval}'::interval) as interval_length,
     extract(year from ref_date) as year
   from reference_dates0
 ),
@@ -25,9 +25,9 @@ where place_id = {place_id}
 )
 
 select year, 
-  avg(temp) as temp_mean,
+  -- avg(temp) as temp,
   -- use trapezoid rule for integration
-  sum(dt_length / interval_length * (temp + temp_lag)/2) as temp_mean2,
+  sum(dt_length / interval_length * (temp + temp_lag)/2) as temp,
   greatest(max(dt_length),
           extract(epoch from min(timestamp - ref_interval_start)),
           extract(epoch from min(ref_interval_end - timestamp))) /60/60 as max_gap_hours

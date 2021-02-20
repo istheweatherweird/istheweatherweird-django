@@ -21,7 +21,7 @@ from itww import views
 urlpatterns = [
     # url(r'^itww/', include('itww.urls')),
     url(r'^', include('itww.urls')),
-    path('metar', views.metar, name = 'metar'),
+    path('current', views.current, name = 'current'),
     path('history', views.history, name = 'history'),
     path('stations', views.stations, name = 'stations')
 ]
