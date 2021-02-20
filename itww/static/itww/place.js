@@ -367,6 +367,11 @@ var phone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.tes
 
 
 d3.json("/stations").then(function(data) {
+    data.sort(function(a, b){
+        if(a.place < b.place) { return -1; }
+        if(a.place > b.place) { return 1; }
+        return 0;
+    })
     placeMap = new Map(data.map(d => [d.ICAO, d]));
     var interval;
     if ('interval' in getUrlVars()) {
