@@ -39,24 +39,24 @@ var getNearestStation = function(geoip, placeMap) {
             return d3.ascending(a[1].distance, b[1].distance); })[0][1];
 }
 
-var lookUpObservations = function(place) {
+var lookUpObservations = function(place, interval) {
   // get the most recent observation
-  d3.json("/metar?call=" + place.ICAO).then(function(response) {
-      obsTemp = response['obsTemp'] * 1.8 + 32
-      obsTime = response['obsTime']
-      makePage(obsTime, obsTemp, place)
+  d3.json("/current?place_id=" + place.place_id + "&interval=" + interval).then(function(response) {
+      obsTemp = response['temp'] * 1.8 + 32
+      obsTime = new Date(response['timestamp'])
+      makePage(obsTime, obsTemp, place, interval)
   })
 }
 
 // look up static CSV with obs and use it + observed temp to make histogram
-var makePage = function(obsTime,obsTemp,place) {
-  obsTime = new Date(obsTime * 1000)
-  d3.json("/history?timestamp=" + obsTime.toISOString() + "&place_id=" + place.place_id).then(function(past) {
+var makePage = function(obsTime, obsTemp, place, interval) {
+  d3.json("/history?timestamp=" + obsTime.toISOString() + "&place_id=" + place.place_id + "&interval=" + interval).then(function(past) {
     // make histograms
-    var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place)
+    makeHistObject = makeHist("histWrapper", obsTemp, past, obsTime, place, interval)
+    var sentence = makeHistObject.sentence
     d3.select("#weird").html(sentence)
     d3.select("#notes").text('Notes:').append('ul').append('li').text(`Weather station: ${place['STATION NAME']}`).append('li').text(`METAR last observation: ${obsTime.toLocaleDateString("en-US",{hour: "numeric", minute:"numeric", timeZone: place.TZ})}`).append('li').text(`NOAA ISD history: ${past.length} observations since ${past[0]['year']}`).append('li').text(`Timezone: ${place.TZ}`)
-    makeYearTimeSeries("yearTimeSeriesWrapper", obsTemp, past, obsTime, place)
+    makeYearTimeSeries("yearTimeSeriesWrapper", obsTemp, past, obsTime, makeHistObject.x)
 
     if (phone) {
       $("#weird").css("font-size","30px")
@@ -66,12 +66,26 @@ var makePage = function(obsTime,obsTemp,place) {
   });
 }
 
-var makeHist = function(wrapperId, obs, past, obsTime, place) {
+intervals = ["hour","day","week","month","year"]
+intervalPhrases = {
+    hour: "right now",
+    day: "in the past day",
+    week: "in the past week",
+    month: "in the past month",
+    year: "in the past year"
+} //
+
+var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
+    var margin = {top: 60, right: 50, bottom: 50, left: 50}
+  past.map(function(x) { x.temp = x.temp * 1.8 + 32 })
+
+  if (interval != 'hour') {
+    past = past.filter(function(d) { return d.max_gap_hours < 4 })
+  }
+
   var pastTemps = past.map(function(d) { return d.temp })
   // A formatter for counts.
   var formatCount = d3.format(",.0f");
-
-  var margin = {top: 60, right: 30, bottom: 50, left: 30}
 
   var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
 
@@ -236,9 +250,19 @@ var makeHist = function(wrapperId, obs, past, obsTime, place) {
     if (p.ICAO == place.ICAO) {
       placeDropdownHtml += " active"
     }
-    placeDropdownHtml += "' href='?station=" + p.ICAO + "'>" + p.place + "</a>"
+    placeDropdownHtml += "' href='?station=" + p.ICAO + "&interval=" + interval + "'>" + p.place + "</a>"
   });
   placeDropdownHtml += "</div></div>"
+
+  var intervalDropdownHtml = "<div class='dropdown div-inline'><button id='itww-time-button' class='btn btn-secondary btn-lg btn-place dropdown-toggle' type='button' id='intervalDropdownMenuButton' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>" + intervalPhrases[interval] + "</button><div class='dropdown-menu' aria-labelledby='intervalDropdownMenuButton'>"
+  intervals.forEach(function(i) {
+    intervalDropdownHtml += "<a class='dropdown-item"
+    if (i == interval) {
+      intervalDropdownHtml += " active"
+    }
+    intervalDropdownHtml += "' href='?station=" + place.ICAO + "&interval=" + i + "'>" + intervalPhrases[i] + "</a>"
+  });
+  intervalDropdownHtml += "</div></div>"
 
   var obsRound = Math.round(obs, 0)
 
@@ -261,166 +285,82 @@ var makeHist = function(wrapperId, obs, past, obsTime, place) {
   var weirdnessHtml = `<span class='itww-${style}'>${weirdnessText}</span>`
   // only style the comparative if its not typical
   var compHtml = weirdness == 0 ? compText : `<span class='itww-${style}'>${compText}</span>`
+  var verbTense = interval == "hour" ? "is" : "was"
 
-  var sentence1 = `The weather in ${placeDropdownHtml} is ${weirdnessHtml}.`
+  var sentence1 = `The weather in ${placeDropdownHtml} ${verbTense} ${weirdnessHtml} ${intervalDropdownHtml}.`
   var sentence2 = ''
   if (!record) {
     sentence2 += `It's ${obsRound}ºF, ${compHtml} than ${percRel}% of ${histTimeText} temperatures on record.`
   } else {
     sentence2 += `It's ${obsRound}ºF, the ${compHtml} ${histTimeText} temperature on record.`
   }
-  return sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>'
+  return {sentence: sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>', x: x}
 }
 
-var makeYearTimeSeries = function(wrapperId, obs, past, obsTime) {
+var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, x) {
+    var margin = {top: 60, right: 50, bottom: 50, left: 50}
+    var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
 
-  //
-  var pastTemps = past.map(function(d) { return d.temp })
-  var startingYear = Math.min(...past.map(function(d) { return parseInt(d.year) }))
-  var currentYear = obsTime.getFullYear()
-
-  // A formatter for counts.
-  var formatCount = d3.format(",.0f");
-
-  var margin = {top: 60, right: 30, bottom: 50, left: 30}
-
-  var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
-
-  var allTemps = pastTemps.concat(obs)
-  var tempExtent = d3.extent(allTemps)
-  console.log(tempExtent)
-
-  x_with_value = d3.scaleLinear()
-    .domain([Math.floor(tempExtent[0]),
-             Math.ceil(tempExtent[1])])
-    .range([0, width]);
-
-    var tickNum = d3.thresholdFreedmanDiaconis(allTemps, tempExtent[0], tempExtent[1])
-    if (phone) {
-      tickNum = Math.min(tickNum, MOBILE_BINS_MAX)
-    } else {
-      tickNum = Math.max(tickNum, DESKTOP_BINS_MIN)
-    }
-
-    var ticks = x_with_value.ticks(tickNum)
-    var data = d3.bin()
-        .value(function(d) {return d.temp})
-        .thresholds(ticks)
-        (past.concat({temp: obs, year: obsTime.getUTCFullYear()}));
-
-    data = data.map(function(ar) {
-      var tempAr = ar.filter(function(yr) { return yr.year != obsTime.getUTCFullYear() })
-      tempAr.x0 = ar.x0
-      tempAr.x1 = ar.x1
-      return tempAr
-    })
-
-    data[0].x0 = data[0].x1-(data[1].x1 - data[0].x1)
-    data[data.length-1].x1 = data[data.length-1].x0+(data[1].x1 - data[0].x1)
-    var x = d3.scaleLinear()
-        .domain([data[0].x0,data[data.length-1].x1])
-        // .domain(d3.extent(x_with_value.ticks(tickNum)))
-        .range([0,width]);
-
-    // the maximum number of observations in a bin
-    maxFreq = d3.max(data, function(d) { return d.length; })
-    if (phone) {
-      var height = 350 - margin.top - margin.bottom
-    } else {
-      // on dekstop height is maxFreq * 24 to make room for years text
-      var height = maxFreq * 24
-    }
-
-    var y = d3.scaleLinear()
-        .domain([startingYear, currentYear])
-        .range([height, 0]);
-
-    // index of last tick for adding dF to label
-    var last_label_i = data.length
-    var phone_cull = phone && (data.length > MOBILE_BINS_MAX)
-    // when number of bins is even and we've culled, last tick is unlabeled
-    if (phone_cull && data.length % 2 == 1) {
-        last_label_i -= 1
-    }
-    var xAxis = d3.axisBottom()
-        .scale(x)
-        .ticks(data.length+1)
-        .tickFormat(function(d, i) {
-            var label = ""
-            label += d
-            if (phone_cull && i % 2 != 0) {
-                label = ""
-            }
-
-            if (i == last_label_i) {
-                label += "ºF"
-            }
-            return label
-        });
-
+      var height = 800
     var svg = d3.select("#" + wrapperId).append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
       .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    svg.append("line")
-        .attr("x1", x(obs))
-        .attr("y1", -20)
-        .attr("x2", x(obs))
-        .attr("y2", height)
-        .attr("stroke-width", 2)
-        .attr("opacity", 0.5)
-        .attr("stroke", "black");
+  var startingYear = Math.min(...past.map(function(d) { return parseInt(d.year) }))
+  var currentYear = obsTime.getFullYear()
 
-    var yearTimeSeriesLine = d3.line()
-        .x(d => x(parseFloat(d.temp)))
-        .y(d => y(parseInt(d.year)))
+  var data = past.slice(1,-1).concat({temp: obs, year: parseInt(currentYear)})
+
+  console.log(data)
 
 
-    svg.append("path")
-        .datum(data)
-        .attr("d",yearTimeSeriesLine)
 
-    // svg.selectAll("rect")
-    //   .data(data)
-    // .enter().append("rect")
-    //   .attr("class", "bar")
-    //   .attr("x", 1)
-    //   .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
-    //   .attr("width", function(d) { return x(d.x1) - x(d.x0) ; })
-    //   .attr("height", function(d) { return height - y(d.length); });
+    var y = d3.scaleLinear()
+        .domain([startingYear, currentYear])
+        .range([height-margin.bottom, 0]);
 
-      if (!phone) {
-        data.forEach(function(d,i) {
-            d = d.sort(function(e,f) { return f.year - e.year})
-            d.forEach(function(j,k) {
-                svg.append("text")
-                .attr("dy", ".75em")
-                .attr("y", 5 + y(d.length) + k * 24)
-                .attr("x", x(d.x0) + (x(d.x1) - x(d.x0)) / 2)
-                .attr("text-anchor", "middle")
-                //.attr("fill", "white")
-                //.attr("stroke", "white")
-                .text(j.year);
-            })
-        })
 
-      }
+
+    var xAxis = g => g
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0))
 
     svg.append("g")
         .attr("class", "x axis")
         .attr("transform", "translate(0," + height + ")")
         .call(xAxis);
 
+    yAxis = g => g
+        .attr("transform", `translate(0,0)`)
+        .call(d3.axisLeft(y).tickFormat(d3.format("d")))
+        .call(g => g.select(".domain").remove())
+        .call(g => g.select(".tick:last-of-type text").clone()
+            .attr("text-anchor", "start")
+            .attr("font-weight", "bold"))
 
-    svg.append("text")
-        // .attr("dy", ".75em")
-        .attr("y", -20)
-        .attr("x", x(obs))
-        .attr("text-anchor", "middle")
-        .attr("font-size", "24px")
-        .text(currentYear);
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+        // var line = d3.line()
+        //     .x(d => x(d.temp))
+        //     .y(d => y(d.year))
+
+    // index of last tick for adding dF to label
+    svg.append("g")
+        .attr("fill", "steelblue")
+        .attr("stroke", "steelblue")
+         .attr("stroke-width", 1.5)
+         .selectAll("circle")
+         .data(data)
+         .join("circle")
+         .attr("cx", i => x(i.temp))
+            .attr("cy", i => y(i.year))
+            .attr("r", 3);
+
+    return svg.node();
 }
 
 var phone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -428,24 +368,29 @@ var phone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.tes
 
 d3.json("/stations").then(function(data) {
     placeMap = new Map(data.map(d => [d.ICAO, d]));
-
+    var interval;
+    if ('interval' in getUrlVars()) {
+        interval = getUrlVars().interval
+    } else {
+        interval = "hour"
+    }
     /* If we get an error we will */
     var onError = function (error) {
-      lookUpObservations(placeMap.get(DEFAULT_STATION))
+      lookUpObservations(placeMap.get(DEFAULT_STATION),interval)
     };
 
     station = getUrlVars().station
     if (station) {
         place = placeMap.get(station)
         if (place) {
-            lookUpObservations(place)
+            lookUpObservations(place, interval)
         } else {
             onError()
         }
     } else {
         $.getJSON("https://get.geojs.io/v1/ip/geo.json", function(geoip) {
             place = getNearestStation(geoip, placeMap)
-            lookUpObservations(place)
+            lookUpObservations(place,interval)
         }).fail(function() {
             onError()
         })

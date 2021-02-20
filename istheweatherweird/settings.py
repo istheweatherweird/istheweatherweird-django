@@ -127,3 +127,34 @@ STATIC_URL = '/static/'
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())
+
+# memcached
+try:
+    servers = os.environ['MEMCACHIER_SERVERS']
+    username = os.environ['MEMCACHIER_USERNAME']
+    password = os.environ['MEMCACHIER_PASSWORD']
+
+    CACHES = {
+        'default': {
+            # Use django-bmemcached
+            'BACKEND': 'django_bmemcached.memcached.BMemcached',
+
+            # TIMEOUT is not the connection timeout! It's the default expiration
+            # timeout that should be applied to keys! Setting it to `None`
+            # disables expiration.
+            'TIMEOUT': None,
+
+            'LOCATION': servers,
+
+            'OPTIONS': {
+                'username': username,
+                'password': password,
+            }
+        }
+    }
+except:
+    CACHES = {
+      'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'
+      }
+    }
