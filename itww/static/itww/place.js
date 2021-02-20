@@ -322,7 +322,7 @@ var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, x) {
         .range([height-margin.bottom, 0]);
 
 
-
+    var color = d3.scaleSequential(x.domain(), d3.interpolateTurbo)
     var xAxis = g => g
         .attr("transform", `translate(0,${height - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0))
@@ -350,15 +350,15 @@ var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, x) {
 
     // index of last tick for adding dF to label
     svg.append("g")
-        .attr("fill", "steelblue")
-        .attr("stroke", "steelblue")
          .attr("stroke-width", 1.5)
          .selectAll("circle")
          .data(data)
          .join("circle")
          .attr("cx", i => x(i.temp))
             .attr("cy", i => y(i.year))
-            .attr("r", 3);
+            .attr("r", 5)
+            .attr("fill", d => color(d.temp))
+            .attr("stroke", d => color(d.temp));
 
     return svg.node();
 }
