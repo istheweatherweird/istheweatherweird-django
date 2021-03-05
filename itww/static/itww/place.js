@@ -297,11 +297,12 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   return {sentence: sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>', x: x}
 }
 
-var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, x) {
+var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, y) {
     var margin = {top: 60, right: 50, bottom: 50, left: 50}
     var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
+    var timeSeriesWidth = width - 50
 
-      var height = 800
+      var height = 600
     var svg = d3.select("#" + wrapperId).append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
@@ -313,40 +314,37 @@ var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, x) {
 
   var data = past.slice(1,-1).concat({temp: obs, year: parseInt(currentYear)})
 
-  console.log(data)
+  // console.log(data)
+  y.range([height-margin.bottom, 0])
 
-
-
-    var y = d3.scaleLinear()
+    var x = d3.scaleLinear()
         .domain([startingYear, currentYear])
-        .range([height-margin.bottom, 0]);
+        .range([0, timeSeriesWidth]);
 
 
-    var color = d3.scaleSequential(x.domain(), d3.interpolateTurbo)
-    var xAxis = g => g
-        .attr("transform", `translate(0,${height - margin.bottom})`)
-        .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0))
-
-    svg.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + height + ")")
-        .call(xAxis);
-
-    yAxis = g => g
+    var color = d3.scaleSequential(y.domain(), d3.interpolateTurbo)
+    var yAxis = g => g
         .attr("transform", `translate(0,0)`)
-        .call(d3.axisLeft(y).tickFormat(d3.format("d")))
-        .call(g => g.select(".domain").remove())
-        .call(g => g.select(".tick:last-of-type text").clone()
-            .attr("text-anchor", "start")
-            .attr("font-weight", "bold"))
+        .call(d3.axisLeft(y))
 
     svg.append("g")
         .attr("class", "y axis")
         .call(yAxis);
 
-        // var line = d3.line()
-        //     .x(d => x(d.temp))
-        //     .y(d => y(d.year))
+    xAxis = g => g
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).tickFormat(d3.format("d")))
+        .call(g => g.select(".tick:last-of-type text").clone()
+            .attr("text-anchor", "start")
+            .attr("font-weight", "bold"))
+
+        // .call(g => g.select(".domain").remove())
+
+
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
 
     // index of last tick for adding dF to label
     svg.append("g")
@@ -354,9 +352,9 @@ var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, x) {
          .selectAll("circle")
          .data(data)
          .join("circle")
-         .attr("cx", i => x(i.temp))
-            .attr("cy", i => y(i.year))
-            .attr("r", 5)
+         .attr("cy", i => y(i.temp))
+            .attr("cx", i => x(i.year))
+            .attr("r", i => i.year == currentYear ? 7 : 5)
             .attr("fill", d => color(d.temp))
             .attr("stroke", d => color(d.temp));
 
