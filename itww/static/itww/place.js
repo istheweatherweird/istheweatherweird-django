@@ -59,6 +59,7 @@ var makePage = function(obsTime, obsTemp, place, interval) {
     if (phone) {
       $("#weird").css("font-size","30px")
       $('#itww-place-button').css("font-size", "30px")
+      $('#itww-interval-button').css("font-size", "30px")
     }
 
   });
@@ -253,7 +254,7 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   });
   placeDropdownHtml += "</div></div>"
 
-  var intervalDropdownHtml = "<div class='dropdown div-inline'><button id='itww-time-button' class='btn btn-secondary btn-lg btn-place dropdown-toggle' type='button' id='intervalDropdownMenuButton' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>" + intervalPhrases[interval] + "</button><div class='dropdown-menu' aria-labelledby='intervalDropdownMenuButton'>"
+  var intervalDropdownHtml = "<div class='dropdown div-inline'><button id='itww-interval-button' class='btn btn-secondary btn-lg btn-place dropdown-toggle' type='button' id='intervalDropdownMenuButton' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>" + intervalPhrases[interval] + "</button><div class='dropdown-menu' aria-labelledby='intervalDropdownMenuButton'>"
   intervals.forEach(function(i) {
     intervalDropdownHtml += "<a class='dropdown-item"
     if (i == interval) {
