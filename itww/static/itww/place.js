@@ -51,6 +51,12 @@ var lookUpObservations = function(place, interval) {
 // look up static CSV with obs and use it + observed temp to make histogram
 var makePage = function(obsTime, obsTemp, place, interval) {
   d3.json("/history?timestamp=" + obsTime.toISOString() + "&place_id=" + place.place_id + "&interval=" + interval).then(function(past) {
+
+    // do any filtering first so everything uses the same data
+    if (interval != 'hour') {
+      past = past.filter(function(d) { return d.max_gap_hours < 4 })
+    }
+
     // make histograms
     var sentence = makeHist("histWrapper", obsTemp, past, obsTime, place, interval)
     d3.select("#weird").html(sentence)
@@ -77,9 +83,7 @@ intervalPhrases = {
 var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   past.map(function(x) { x.temp = x.temp * 1.8 + 32 })
 
-  if (interval != 'hour') {
-    past = past.filter(function(d) { return d.max_gap_hours < 4 })
-  }
+  
 
   var pastTemps = past.map(function(d) { return d.temp })
   // A formatter for counts.
