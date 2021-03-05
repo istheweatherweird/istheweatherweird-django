@@ -286,13 +286,15 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   // only style the comparative if its not typical
   var compHtml = weirdness == 0 ? compText : `<span class='itww-${style}'>${compText}</span>`
   var verbTense = interval == "hour" ? "is" : "was"
+  var obsVerb = interval == "hour" ? "It's" : "It was"
+  var obsAvg = interval == "hour" ? "" : " on average"
 
   var sentence1 = `The weather in ${placeDropdownHtml} ${verbTense} ${weirdnessHtml} ${intervalDropdownHtml}.`
   var sentence2 = ''
   if (!record) {
-    sentence2 += `It's ${obsRound}ºF, ${compHtml} than ${percRel}% of ${histTimeText} temperatures on record.`
+    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, ${compHtml} than ${percRel}% of ${histTimeText} temperatures on record.`
   } else {
-    sentence2 += `It's ${obsRound}ºF, the ${compHtml} ${histTimeText} temperature on record.`
+    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, the ${compHtml} ${histTimeText} temperature on record.`
   }
   return sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>'
 }
