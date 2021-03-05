@@ -216,10 +216,11 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
         .text(obsTime.getFullYear());
 
     var histTimeText = obsTime.toLocaleDateString("en-US",{month: "short", day: "numeric", hour: "numeric", timeZone: place.TZ})
+    var obsInterval = interval == "hour" ? `${histTimeText} Temperatures` : `Temperatures for the ${interval} ending ${histTimeText}`
     svg.append("text")      // text label for the x axis
             .attr("transform", "translate(" + (width / 2) + " ," + (height + margin.bottom - 5) + ")")
             .style("text-anchor", "middle")
-            .text(histTimeText + " Temperatures");
+            .text(obsInterval);
 
   // build the sentence
   var totalYears = pastTemps.length
@@ -288,13 +289,15 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   var verbTense = interval == "hour" ? "is" : "was"
   var obsVerb = interval == "hour" ? "It's" : "It was"
   var obsAvg = interval == "hour" ? "" : " on average"
+  obsInterval = obsInterval.replace("Temperatures", "temperatures")
 
   var sentence1 = `The weather in ${placeDropdownHtml} ${verbTense} ${weirdnessHtml} ${intervalDropdownHtml}.`
   var sentence2 = ''
   if (!record) {
-    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, ${compHtml} than ${percRel}% of ${histTimeText} temperatures on record.`
+    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, ${compHtml} than ${percRel}% of ${obsInterval} on record.`
   } else {
-    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, the ${compHtml} ${histTimeText} temperature on record.`
+    obsInterval = obsInterval.replace("temperatures", "temperature")
+    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, the ${compHtml} ${obsInterval} on record.`
   }
   return sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>'
 }
