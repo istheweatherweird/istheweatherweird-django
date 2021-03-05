@@ -51,6 +51,12 @@ var lookUpObservations = function(place, interval) {
 // look up static CSV with obs and use it + observed temp to make histogram
 var makePage = function(obsTime, obsTemp, place, interval) {
   d3.json("/history?timestamp=" + obsTime.toISOString() + "&place_id=" + place.place_id + "&interval=" + interval).then(function(past) {
+
+    // do any filtering first so everything uses the same data
+    if (interval != 'hour') {
+      past = past.filter(function(d) { return d.max_gap_hours < 4 })
+    }
+
     // make histograms
     makeHistObject = makeHist("histWrapper", obsTemp, past, obsTime, place, interval)
     var sentence = makeHistObject.sentence
@@ -61,6 +67,7 @@ var makePage = function(obsTime, obsTemp, place, interval) {
     if (phone) {
       $("#weird").css("font-size","30px")
       $('#itww-place-button').css("font-size", "30px")
+      $('#itww-interval-button').css("font-size", "30px")
     }
 
   });
@@ -79,9 +86,7 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
     var margin = {top: 60, right: 50, bottom: 50, left: 50}
   past.map(function(x) { x.temp = x.temp * 1.8 + 32 })
 
-  if (interval != 'hour') {
-    past = past.filter(function(d) { return d.max_gap_hours < 4 })
-  }
+  
 
   var pastTemps = past.map(function(d) { return d.temp })
   // A formatter for counts.
@@ -216,10 +221,11 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
         .text(obsTime.getFullYear());
 
     var histTimeText = obsTime.toLocaleDateString("en-US",{month: "short", day: "numeric", hour: "numeric", timeZone: place.TZ})
+    var obsInterval = interval == "hour" ? `${histTimeText} Temperatures` : `Temperatures for the ${interval} ending ${histTimeText}`
     svg.append("text")      // text label for the x axis
             .attr("transform", "translate(" + (width / 2) + " ," + (height + margin.bottom - 5) + ")")
             .style("text-anchor", "middle")
-            .text(histTimeText + " Temperatures");
+            .text(obsInterval);
 
   // build the sentence
   var totalYears = pastTemps.length
@@ -254,7 +260,7 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   });
   placeDropdownHtml += "</div></div>"
 
-  var intervalDropdownHtml = "<div class='dropdown div-inline'><button id='itww-time-button' class='btn btn-secondary btn-lg btn-place dropdown-toggle' type='button' id='intervalDropdownMenuButton' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>" + intervalPhrases[interval] + "</button><div class='dropdown-menu' aria-labelledby='intervalDropdownMenuButton'>"
+  var intervalDropdownHtml = "<div class='dropdown div-inline'><button id='itww-interval-button' class='btn btn-secondary btn-lg btn-place dropdown-toggle' type='button' id='intervalDropdownMenuButton' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>" + intervalPhrases[interval] + "</button><div class='dropdown-menu' aria-labelledby='intervalDropdownMenuButton'>"
   intervals.forEach(function(i) {
     intervalDropdownHtml += "<a class='dropdown-item"
     if (i == interval) {
@@ -286,13 +292,17 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
   // only style the comparative if its not typical
   var compHtml = weirdness == 0 ? compText : `<span class='itww-${style}'>${compText}</span>`
   var verbTense = interval == "hour" ? "is" : "was"
+  var obsVerb = interval == "hour" ? "It's" : "It was"
+  var obsAvg = interval == "hour" ? "" : " on average"
+  obsInterval = obsInterval.replace("Temperatures", "temperatures")
 
   var sentence1 = `The weather in ${placeDropdownHtml} ${verbTense} ${weirdnessHtml} ${intervalDropdownHtml}.`
   var sentence2 = ''
   if (!record) {
-    sentence2 += `It's ${obsRound}ºF, ${compHtml} than ${percRel}% of ${histTimeText} temperatures on record.`
+    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, ${compHtml} than ${percRel}% of ${obsInterval} on record.`
   } else {
-    sentence2 += `It's ${obsRound}ºF, the ${compHtml} ${histTimeText} temperature on record.`
+    obsInterval = obsInterval.replace("temperatures", "temperature")
+    sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, the ${compHtml} ${obsInterval} on record.`
   }
   return {sentence: sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>', x: x}
 }
