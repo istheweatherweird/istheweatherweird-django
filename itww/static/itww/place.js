@@ -83,64 +83,83 @@ intervalPhrases = {
 } //
 
 var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
-    var margin = {top: 60, right: 50, bottom: 50, left: 50}
-  past.map(function(x) { x.temp = x.temp * 1.8 + 32 })
+    var margin = {top: 60, right: 50, bottom: 50, left: 50, between: 10}
+    past.map(function(x) { x.temp = x.temp * 1.8 + 32 })
+    var pastTemps = past.map(function(d) { return d.temp })
+    // A formatter for counts.
+    var formatCount = d3.format(",.0f");
 
-  
+    var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
+    var histWidth = 70
+    var timeSeriesWidth = width - (histWidth + margin.between)
 
-  var pastTemps = past.map(function(d) { return d.temp })
-  // A formatter for counts.
-  var formatCount = d3.format(",.0f");
+    var allTemps = pastTemps.concat(obs)
+    var tempExtent = d3.extent(allTemps)
 
-  var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
+    var startingYear = Math.min(...past.map(function(d) { return parseInt(d.year) }))
+    var currentYear = obsTime.getFullYear()
 
-  var allTemps = pastTemps.concat(obs)
-  var tempExtent = d3.extent(allTemps)
+    // TODO: replace slice(1,-1) with something smarter...
+    var data = past.slice(1,-1).concat({temp: obs, year: parseInt(currentYear), max_gap_hours: 0})
+    var x = d3.scaleLinear()
+        .domain([startingYear, currentYear])
+        .range([0, timeSeriesWidth]);
 
-  x_with_value = d3.scaleLinear()
-    .domain([Math.floor(tempExtent[0]),
-             Math.ceil(tempExtent[1])])
-    .range([0, width]);
+    y_with_value = d3.scaleLinear()
+        .domain([Math.floor(tempExtent[0]),Math.ceil(tempExtent[1])])
+        .range([height-margin.bottom, 0]);
 
     var tickNum = d3.thresholdFreedmanDiaconis(allTemps, tempExtent[0], tempExtent[1])
     if (phone) {
-      tickNum = Math.min(tickNum, MOBILE_BINS_MAX)
+        tickNum = Math.min(tickNum, MOBILE_BINS_MAX)
     } else {
-      tickNum = Math.max(tickNum, DESKTOP_BINS_MIN)
+        tickNum = Math.max(tickNum, DESKTOP_BINS_MIN)
     }
 
-    var ticks = x_with_value.ticks(tickNum)
-    var data = d3.bin()
+    var ticks = y_with_value.ticks(tickNum)
+    var bins = d3.bin()
         .value(function(d) {return d.temp})
         .thresholds(ticks)
-        (past.concat({temp: obs, year: obsTime.getUTCFullYear()}));
+        (data);
 
-    data = data.map(function(ar) {
-      var tempAr = ar.filter(function(yr) { return yr.year != obsTime.getUTCFullYear() })
-      tempAr.x0 = ar.x0
-      tempAr.x1 = ar.x1
-      return tempAr
+    console.log(data)
+
+    bins = bins.map(function(ar) {
+        var tempAr = ar.filter(function(yr) { return yr.year != obsTime.getUTCFullYear() })
+        tempAr.x0 = ar.x0
+        tempAr.x1 = ar.x1
+        return tempAr
     })
 
-    data[0].x0 = data[0].x1-(data[1].x1 - data[0].x1)
-    data[data.length-1].x1 = data[data.length-1].x0+(data[1].x1 - data[0].x1)
-    var x = d3.scaleLinear()
-        .domain([data[0].x0,data[data.length-1].x1])
-        // .domain(d3.extent(x_with_value.ticks(tickNum)))
-        .range([0,width]);
-
+    bins[0].x0 = bins[0].x1-(bins[1].x1 - bins[0].x1)
+    bins[bins.length-1].x1 = bins[bins.length-1].x0+(bins[1].x1 - bins[0].x1)
     // the maximum number of observations in a bin
-    maxFreq = d3.max(data, function(d) { return d.length; })
+    maxFreq = d3.max(bins, function(d) { return d.length; })
     if (phone) {
       var height = 350 - margin.top - margin.bottom
     } else {
       // on dekstop height is maxFreq * 24 to make room for years text
-      var height = maxFreq * 24
+      var height = 400 // maxFreq * 24
     }
 
+
     var y = d3.scaleLinear()
-        .domain([0, maxFreq])
-        .range([height, 0]);
+        .domain([bins[0].x0,bins[bins.length-1].x1])
+        // .domain(d3.extent(x_with_value.ticks(tickNum)))
+        .range([height-margin.bottom, 0]);
+
+    var color = d3.scaleSequential(y.domain(), d3.interpolateTurbo)
+
+    xAxis = g => g
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).tickFormat(d3.format("d")))
+        .call(g => g.select(".tick:last-of-type text").clone()
+            .attr("text-anchor", "start")
+            .attr("font-weight", "bold"))
+
+
+
+
 
     // index of last tick for adding dF to label
     var last_label_i = data.length
@@ -149,9 +168,9 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
     if (phone_cull && data.length % 2 == 1) {
         last_label_i -= 1
     }
-    var xAxis = d3.axisBottom()
-        .scale(x)
-        .ticks(data.length+1)
+    var yAxis = d3.axisLeft()
+        .scale(y)
+        .ticks(bins.length+1)
         .tickFormat(function(d, i) {
             var label = ""
             label += d
@@ -171,40 +190,63 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
       .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    svg.append("line")
-        .attr("x1", x(obs))
-        .attr("y1", -20)
-        .attr("x2", x(obs))
-        .attr("y2", height)
-        .attr("stroke-width", 2)
-        .attr("opacity", 0.5)
-        .attr("stroke", "black");
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+    // svg.append("line")
+    //     .attr("x1", x(obs))
+    //     .attr("y1", -20)
+    //     .attr("x2", x(obs))
+    //     .attr("y2", height)
+    //     .attr("stroke-width", 2)
+    //     .attr("opacity", 0.5)
+    //     .attr("stroke", "black");
+
+    // index of last tick for adding dF to label
+    svg.append("g")
+         .attr("stroke-width", 1.5)
+         .selectAll("circle")
+         .data(data)
+         .join("circle")
+         .attr("cy", i => y(i.temp))
+            .attr("cx", i => x(i.year))
+            .attr("r", i => i.year == currentYear ? 7 : 5)
+            .attr("fill", d => color(d.temp))
+            .attr("stroke", d => color(d.temp));
+
+    var xHist = d3.scaleLinear()
+        .domain([0,maxFreq])
+        // .domain(d3.extent(x_with_value.ticks(tickNum)))
+        .range([0, histWidth]);
 
     svg.selectAll("rect")
-      .data(data)
+      .data(bins)
     .enter().append("rect")
       .attr("class", "bar")
       .attr("x", 1)
-      .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
-      .attr("width", function(d) { return x(d.x1) - x(d.x0) ; })
-      .attr("height", function(d) { return height - y(d.length); });
+      .attr("transform", function(d) { return "translate(" + (timeSeriesWidth + margin.between) + "," + y(d.x1) + ")"; })
+      .attr("height", function(d) { return y(d.x0) - y(d.x1) ; })
+      .attr("width", function(d) { return xHist(d.length); })
+      .style("stroke", function(d) { return color((d.x0+d.x1)/2) })
+      .style("fill", function(d) { return color((d.x0+d.x1)/2) });
 
-      if (!phone) {
-        data.forEach(function(d,i) {
-            d = d.sort(function(e,f) { return f.year - e.year})
-            d.forEach(function(j,k) {
-                svg.append("text")
-                .attr("dy", ".75em")
-                .attr("y", 5 + y(d.length) + k * 24)
-                .attr("x", x(d.x0) + (x(d.x1) - x(d.x0)) / 2)
-                .attr("text-anchor", "middle")
-                //.attr("fill", "white")
-                //.attr("stroke", "white")
-                .text(j.year);
-            })
-        })
-
-      }
+      // if (!phone) {
+      //   data.forEach(function(d,i) {
+      //       d = d.sort(function(e,f) { return f.year - e.year})
+      //       d.forEach(function(j,k) {
+      //           svg.append("text")
+      //           .attr("dy", ".75em")
+      //           .attr("y", 5 + y(d.length) + k * 24)
+      //           .attr("x", x(d.x0) + (x(d.x1) - x(d.x0)) / 2)
+      //           .attr("text-anchor", "middle")
+      //           //.attr("fill", "white")
+      //           //.attr("stroke", "white")
+      //           .text(j.year);
+      //       })
+      //   })
+      //
+      // }
 
     svg.append("g")
         .attr("class", "x axis")
@@ -304,71 +346,19 @@ var makeHist = function(wrapperId, obs, past, obsTime, place, interval) {
     obsInterval = obsInterval.replace("temperatures", "temperature")
     sentence2 += `${obsVerb} ${obsRound}ºF${obsAvg}, the ${compHtml} ${obsInterval} on record.`
   }
+
+  //     return svg.node();
   return {sentence: sentence1 + ' <br/><span style="font-size:25px">' + sentence2 + '</span>', x: x}
 }
 
 var makeYearTimeSeries = function(wrapperId, obs, past, obsTime, y) {
-    var margin = {top: 60, right: 50, bottom: 50, left: 50}
-    var width = parseInt(d3.select("#" + wrapperId).style("width")) - margin.left - margin.right
-    var timeSeriesWidth = width - 50
-
-      var height = 600
-    var svg = d3.select("#" + wrapperId).append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-      .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-  var startingYear = Math.min(...past.map(function(d) { return parseInt(d.year) }))
-  var currentYear = obsTime.getFullYear()
-
-  var data = past.slice(1,-1).concat({temp: obs, year: parseInt(currentYear)})
-
-  // console.log(data)
-  y.range([height-margin.bottom, 0])
-
-    var x = d3.scaleLinear()
-        .domain([startingYear, currentYear])
-        .range([0, timeSeriesWidth]);
-
-
-    var color = d3.scaleSequential(y.domain(), d3.interpolateTurbo)
-    var yAxis = g => g
-        .attr("transform", `translate(0,0)`)
-        .call(d3.axisLeft(y))
-
-    svg.append("g")
-        .attr("class", "y axis")
-        .call(yAxis);
-
-    xAxis = g => g
-        .attr("transform", `translate(0,${height - margin.bottom})`)
-        .call(d3.axisBottom(x).tickFormat(d3.format("d")))
-        .call(g => g.select(".tick:last-of-type text").clone()
-            .attr("text-anchor", "start")
-            .attr("font-weight", "bold"))
 
         // .call(g => g.select(".domain").remove())
 
 
-    svg.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + height + ")")
-        .call(xAxis);
 
-    // index of last tick for adding dF to label
-    svg.append("g")
-         .attr("stroke-width", 1.5)
-         .selectAll("circle")
-         .data(data)
-         .join("circle")
-         .attr("cy", i => y(i.temp))
-            .attr("cx", i => x(i.year))
-            .attr("r", i => i.year == currentYear ? 7 : 5)
-            .attr("fill", d => color(d.temp))
-            .attr("stroke", d => color(d.temp));
 
-    return svg.node();
+
 }
 
 var phone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
